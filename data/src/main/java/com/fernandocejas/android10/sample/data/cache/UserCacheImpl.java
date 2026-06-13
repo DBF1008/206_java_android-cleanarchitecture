@@ -81,11 +81,9 @@ public class UserCacheImpl implements UserCache {
   @Override public void put(UserEntity userEntity) {
     if (userEntity != null) {
       final File userEntityFile = this.buildFile(userEntity.getUserId());
-      if (!isCached(userEntity.getUserId())) {
-        final String jsonString = this.serializer.serialize(userEntity, UserEntity.class);
-        this.executeAsynchronously(new CacheWriter(this.fileManager, userEntityFile, jsonString));
-        setLastCacheUpdateTimeMillis();
-      }
+      final String jsonString = this.serializer.serialize(userEntity, UserEntity.class);
+      this.executeAsynchronously(new CacheWriter(this.fileManager, userEntityFile, jsonString));
+      setLastCacheUpdateTimeMillis();
     }
   }
 
@@ -98,13 +96,7 @@ public class UserCacheImpl implements UserCache {
     long currentTime = System.currentTimeMillis();
     long lastUpdateTime = this.getLastCacheUpdateTimeMillis();
 
-    boolean expired = ((currentTime - lastUpdateTime) > EXPIRATION_TIME);
-
-    if (expired) {
-      this.evictAll();
-    }
-
-    return expired;
+    return ((currentTime - lastUpdateTime) > EXPIRATION_TIME);
   }
 
   @Override public void evictAll() {
