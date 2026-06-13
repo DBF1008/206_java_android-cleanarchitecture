@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./gradlew :data:testDebugUnitTest --tests \"com.fernandocejas.android10.sample.data.cache.UserCacheImplTest\")"
+    ]
+  }
+}

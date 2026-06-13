@@ -35,6 +35,7 @@ public class UserCacheImpl implements UserCache {
   private static final String SETTINGS_KEY_LAST_CACHE_UPDATE = "last_cache_update";
 
   private static final String DEFAULT_FILE_NAME = "user_";
+  private static final String USER_CACHE_DIR = "user_cache";
   private static final long EXPIRATION_TIME = 60 * 10 * 1000;
 
   private final Context context;
@@ -56,7 +57,10 @@ public class UserCacheImpl implements UserCache {
       throw new IllegalArgumentException("Invalid null parameter");
     }
     this.context = context.getApplicationContext();
-    this.cacheDir = this.context.getCacheDir();
+    this.cacheDir = new File(this.context.getCacheDir(), USER_CACHE_DIR);
+    if (!this.cacheDir.exists()) {
+      this.cacheDir.mkdirs();
+    }
     this.serializer = serializer;
     this.fileManager = fileManager;
     this.threadExecutor = executor;
