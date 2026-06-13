@@ -42,6 +42,15 @@ public class UserListPresenter implements Presenter {
   private final GetUserList getUserListUseCase;
   private final UserModelDataMapper userModelDataMapper;
 
+  /**
+   * Cached user list from the last successful load.
+   * Survives configuration changes (via retained presenter) and enables instant
+   * re-rendering without a redundant network call. After process death the
+   * presenter is recreated and this field is null, so {@link #initialize()}
+   * falls through to a fresh load.
+   */
+  private List<User> lastUserList;
+
   @Inject
   public UserListPresenter(GetUserList getUserListUserCase,
       UserModelDataMapper userModelDataMapper) {
@@ -63,10 +72,17 @@ public class UserListPresenter implements Presenter {
   }
 
   /**
-   * Initializes the presenter by start retrieving the user list.
+   * Initializes the presenter. If user list data is already cached (e.g. after a
+   * configuration change where the presenter is retained), the cached data is
+   * rendered immediately without a network call. Otherwise a fresh load is
+   * triggered.
    */
   public void initialize() {
-    this.loadUserList();
+    if (this.lastUserList != null) {
+      this.showUsersCollectionInView(this.lastUserList);
+    } else {
+      this.loadUserList();
+    }
   }
 
   /**
@@ -127,6 +143,7 @@ public class UserListPresenter implements Presenter {
     }
 
     @Override public void onNext(List<User> users) {
+      UserListPresenter.this.lastUserList = users;
       UserListPresenter.this.showUsersCollectionInView(users);
     }
   }

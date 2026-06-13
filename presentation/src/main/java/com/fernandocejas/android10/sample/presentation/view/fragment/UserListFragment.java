@@ -76,9 +76,7 @@ public class UserListFragment extends BaseFragment implements UserListView {
   @Override public void onViewCreated(View view, Bundle savedInstanceState) {
     super.onViewCreated(view, savedInstanceState);
     this.userListPresenter.setView(this);
-    if (savedInstanceState == null) {
-      this.loadUserList();
-    }
+    this.loadUserList();
   }
 
   @Override public void onResume() {

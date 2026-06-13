@@ -41,6 +41,16 @@ public class UserDetailsPresenter implements Presenter {
   private final GetUserDetails getUserDetailsUseCase;
   private final UserModelDataMapper userModelDataMapper;
 
+  /**
+   * Cached user details from the last successful load, together with the ID of
+   * the user that was loaded. Survives configuration changes (via retained
+   * presenter) and enables instant re-rendering without a redundant network
+   * call. After process death the presenter is recreated and this field is
+   * null, so {@link #initialize(int)} falls through to a fresh load.
+   */
+  private User lastUserDetails;
+  private int cachedUserId = -1;
+
   @Inject
   public UserDetailsPresenter(GetUserDetails getUserDetailsUseCase,
       UserModelDataMapper userModelDataMapper) {
@@ -63,15 +73,23 @@ public class UserDetailsPresenter implements Presenter {
 
   /**
    * Initializes the presenter by showing/hiding proper views
-   * and retrieving user details.
+   * and retrieving user details. If details for the requested user are already
+   * cached (e.g. after a configuration change where the presenter is retained),
+   * the cached data is rendered immediately without a network call. Otherwise a
+   * fresh load is triggered.
    */
   public void initialize(int userId) {
-    this.hideViewRetry();
-    this.showViewLoading();
-    this.getUserDetails(userId);
+    if (this.lastUserDetails != null && this.cachedUserId == userId) {
+      this.showUserDetailsInView(this.lastUserDetails);
+    } else {
+      this.hideViewRetry();
+      this.showViewLoading();
+      this.getUserDetails(userId);
+    }
   }
 
   private void getUserDetails(int userId) {
+    this.cachedUserId = userId;
     this.getUserDetailsUseCase.execute(new UserDetailsObserver(), Params.forUser(userId));
   }
 
@@ -115,6 +133,7 @@ public class UserDetailsPresenter implements Presenter {
     }
 
     @Override public void onNext(User user) {
+      UserDetailsPresenter.this.lastUserDetails = user;
       UserDetailsPresenter.this.showUserDetailsInView(user);
     }
   }

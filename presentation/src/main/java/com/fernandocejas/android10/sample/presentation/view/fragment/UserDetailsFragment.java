@@ -68,9 +68,7 @@ public class UserDetailsFragment extends BaseFragment implements UserDetailsView
   @Override public void onViewCreated(View view, Bundle savedInstanceState) {
     super.onViewCreated(view, savedInstanceState);
     this.userDetailsPresenter.setView(this);
-    if (savedInstanceState == null) {
-      this.loadUserDetails();
-    }
+    this.loadUserDetails();
   }
 
   @Override public void onResume() {
