@@ -16,6 +16,7 @@
 package com.fernandocejas.android10.sample.test.exception;
 
 import android.test.AndroidTestCase;
+import com.fernandocejas.android10.sample.data.exception.DataParseException;
 import com.fernandocejas.android10.sample.data.exception.NetworkConnectionException;
 import com.fernandocejas.android10.sample.data.exception.UserNotFoundException;
 import com.fernandocejas.android10.sample.presentation.R;
@@ -42,6 +43,13 @@ public class ErrorMessageFactoryTest extends AndroidTestCase {
   public void testUserNotFoundErrorMessage() {
     String expectedMessage = getContext().getString(R.string.exception_message_user_not_found);
     String actualMessage = ErrorMessageFactory.create(getContext(), new UserNotFoundException());
+
+    assertThat(actualMessage, is(equalTo(expectedMessage)));
+  }
+
+  public void testDataParseErrorMessage() {
+    String expectedMessage = getContext().getString(R.string.exception_message_data_parse);
+    String actualMessage = ErrorMessageFactory.create(getContext(), new DataParseException());
 
     assertThat(actualMessage, is(equalTo(expectedMessage)));
   }

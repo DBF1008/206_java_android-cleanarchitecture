@@ -20,7 +20,9 @@ import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import com.fernandocejas.android10.sample.data.entity.UserEntity;
 import com.fernandocejas.android10.sample.data.entity.mapper.UserEntityJsonMapper;
+import com.fernandocejas.android10.sample.data.exception.DataParseException;
 import com.fernandocejas.android10.sample.data.exception.NetworkConnectionException;
+import com.google.gson.JsonSyntaxException;
 import io.reactivex.Observable;
 import java.net.MalformedURLException;
 import java.util.List;
@@ -59,8 +61,10 @@ public class RestApiImpl implements RestApi {
           } else {
             emitter.onError(new NetworkConnectionException());
           }
+        } catch (JsonSyntaxException | MalformedURLException parseError) {
+          emitter.onError(new DataParseException(parseError));
         } catch (Exception e) {
-          emitter.onError(new NetworkConnectionException(e.getCause()));
+          emitter.onError(e);
         }
       } else {
         emitter.onError(new NetworkConnectionException());
@@ -79,8 +83,10 @@ public class RestApiImpl implements RestApi {
           } else {
             emitter.onError(new NetworkConnectionException());
           }
+        } catch (JsonSyntaxException | MalformedURLException parseError) {
+          emitter.onError(new DataParseException(parseError));
         } catch (Exception e) {
-          emitter.onError(new NetworkConnectionException(e.getCause()));
+          emitter.onError(e);
         }
       } else {
         emitter.onError(new NetworkConnectionException());

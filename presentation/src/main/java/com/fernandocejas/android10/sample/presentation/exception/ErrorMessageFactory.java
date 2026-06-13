@@ -16,6 +16,7 @@
 package com.fernandocejas.android10.sample.presentation.exception;
 
 import android.content.Context;
+import com.fernandocejas.android10.sample.data.exception.DataParseException;
 import com.fernandocejas.android10.sample.data.exception.NetworkConnectionException;
 import com.fernandocejas.android10.sample.data.exception.UserNotFoundException;
 import com.fernandocejas.android10.sample.presentation.R;
@@ -43,6 +44,8 @@ public class ErrorMessageFactory {
       message = context.getString(R.string.exception_message_no_connection);
     } else if (exception instanceof UserNotFoundException) {
       message = context.getString(R.string.exception_message_user_not_found);
+    } else if (exception instanceof DataParseException) {
+      message = context.getString(R.string.exception_message_data_parse);
     }
 
     return message;
