@@ -21,10 +21,16 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLConnection;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Simple implementation of {@link android.widget.ImageView} with extended features like setting an
  * image from an url and an internal file cache using the application cache directory.
+ *
+ * <p>Each {@link #setImageUrl(String)} call increments an internal request token. Background cache
+ * lookups and network downloads check the token before applying their result, so stale responses
+ * from previous URLs are silently discarded. The in-flight background thread is also interrupted
+ * when a new URL is set, to avoid wasting resources.</p>
  */
 public class AutoLoadImageView extends ImageView {
 
@@ -33,6 +39,21 @@ public class AutoLoadImageView extends ImageView {
   private String imageUrl = null;
   private int imagePlaceHolderResId = -1;
   private DiskCache cache = new DiskCache(getContext().getCacheDir());
+
+  /**
+   * Monotonically increasing token that uniquely identifies the most recent {@link #setImageUrl}
+   * request. Background work captures the token value at submission time and checks it before
+   * touching the UI; if the values differ the view has moved on to a different URL and the
+   * result is discarded.
+   */
+  private final AtomicInteger requestToken = new AtomicInteger(0);
+
+  /**
+   * The background {@link Thread} currently performing the cache lookup / network download for
+   * the latest request. Kept so that {@link #setImageUrl(String)} can interrupt it when a new
+   * URL supersedes the in-flight one.
+   */
+  private Thread currentLoadingThread = null;
 
   public AutoLoadImageView(Context context) {
     super(context);
@@ -69,15 +90,32 @@ public class AutoLoadImageView extends ImageView {
   /**
    * Set an image from a remote url.
    *
+   * <p>Any in-flight load is cancelled (its background thread is interrupted and its result will
+   * be discarded via the request token), the placeholder is shown immediately, and a new
+   * background load is kicked off for {@code imageUrl}.</p>
+   *
    * @param imageUrl The url of the resource to load.
    */
   public void setImageUrl(final String imageUrl) {
     this.imageUrl = imageUrl;
-    AutoLoadImageView.this.loadImagePlaceHolder();
+    final int token = this.requestToken.incrementAndGet();
+    this.cancelCurrentLoad();
+    this.loadImagePlaceHolder(token);
     if (this.imageUrl != null) {
-      this.loadImageFromUrl(this.imageUrl);
-    } else {
-      this.loadImagePlaceHolder();
+      this.loadImageFromUrl(this.imageUrl, token);
+    }
+  }
+
+  /**
+   * Interrupts the background thread that is currently performing a cache lookup or network
+   * download, if any. The interrupted thread's callbacks will observe a stale request token and
+   * discard their results.
+   */
+  private void cancelCurrentLoad() {
+    final Thread thread = this.currentLoadingThread;
+    if (thread != null) {
+      thread.interrupt();
+      this.currentLoadingThread = null;
     }
   }
 
@@ -85,56 +123,96 @@ public class AutoLoadImageView extends ImageView {
    * Loads and image from the internet (and cache it) or from the internal cache.
    *
    * @param imageUrl The remote image url to load.
+   * @param token    The request token captured at submission time; results are applied only if
+   *                 this still matches the current token.
    */
-  private void loadImageFromUrl(final String imageUrl) {
-    new Thread() {
+  private void loadImageFromUrl(final String imageUrl, final int token) {
+    final Thread loadingThread = new Thread() {
       @Override public void run() {
         final Bitmap bitmap = AutoLoadImageView.this.getFromCache(getFileNameFromUrl(imageUrl));
+        if (!isValidRequest(token)) {
+          return;
+        }
         if (bitmap != null) {
-          AutoLoadImageView.this.loadBitmap(bitmap);
+          AutoLoadImageView.this.loadBitmap(bitmap, token);
         } else {
           if (isThereInternetConnection()) {
-            final ImageDownloader imageDownloader = new ImageDownloader();
+            final ImageDownloader imageDownloader = createImageDownloader();
             imageDownloader.download(imageUrl, new ImageDownloader.Callback() {
               @Override public void onImageDownloaded(Bitmap bitmap) {
+                if (!isValidRequest(token)) {
+                  return;
+                }
                 AutoLoadImageView.this.cacheBitmap(bitmap, getFileNameFromUrl(imageUrl));
-                AutoLoadImageView.this.loadBitmap(bitmap);
+                AutoLoadImageView.this.loadBitmap(bitmap, token);
               }
 
               @Override public void onError() {
-                AutoLoadImageView.this.loadImagePlaceHolder();
+                if (!isValidRequest(token)) {
+                  return;
+                }
+                AutoLoadImageView.this.loadImagePlaceHolder(token);
               }
             });
           } else {
-            AutoLoadImageView.this.loadImagePlaceHolder();
+            if (!isValidRequest(token)) {
+              return;
+            }
+            AutoLoadImageView.this.loadImagePlaceHolder(token);
           }
         }
       }
-    }.start();
+    };
+    this.currentLoadingThread = loadingThread;
+    loadingThread.start();
+  }
+
+  /**
+   * Returns {@code true} if {@code token} still corresponds to the most recent request, i.e. no
+   * newer {@link #setImageUrl(String)} call has been made. Used by background threads and UI
+   * callbacks to discard stale results.
+   */
+  boolean isValidRequest(int token) {
+    return token == this.requestToken.get();
+  }
+
+  /**
+   * Factory method for creating an {@link ImageDownloader}. Package-private so that tests can
+   * override it to inject a controllable fake.
+   */
+  ImageDownloader createImageDownloader() {
+    return new ImageDownloader();
   }
 
   /**
    * Run the operation of loading a bitmap on the UI thread.
    *
    * @param bitmap The image to load.
+   * @param token  The request token; the bitmap is applied only if the token is still current.
    */
-  private void loadBitmap(final Bitmap bitmap) {
+  private void loadBitmap(final Bitmap bitmap, final int token) {
     ((Activity) getContext()).runOnUiThread(new Runnable() {
       @Override public void run() {
-        AutoLoadImageView.this.setImageBitmap(bitmap);
+        if (isValidRequest(token)) {
+          AutoLoadImageView.this.setImageBitmap(bitmap);
+        }
       }
     });
   }
 
   /**
    * Loads the image place holder if any has been assigned.
+   *
+   * @param token The request token; the placeholder is applied only if the token is still current.
    */
-  private void loadImagePlaceHolder() {
+  private void loadImagePlaceHolder(final int token) {
     if (this.imagePlaceHolderResId != -1) {
       ((Activity) getContext()).runOnUiThread(new Runnable() {
         @Override public void run() {
-          AutoLoadImageView.this.setImageResource(
-              AutoLoadImageView.this.imagePlaceHolderResId);
+          if (isValidRequest(token)) {
+            AutoLoadImageView.this.setImageResource(
+                AutoLoadImageView.this.imagePlaceHolderResId);
+          }
         }
       });
     }
@@ -171,7 +249,7 @@ public class AutoLoadImageView extends ImageView {
    *
    * @return true device with internet connection, otherwise false.
    */
-  private boolean isThereInternetConnection() {
+  boolean isThereInternetConnection() {
     boolean isConnected;
 
     final ConnectivityManager connectivityManager =
@@ -200,7 +278,7 @@ public class AutoLoadImageView extends ImageView {
   /**
    * Class used to download images from the internet
    */
-  private static class ImageDownloader {
+  static class ImageDownloader {
     interface Callback {
       void onImageDownloaded(Bitmap bitmap);
 
