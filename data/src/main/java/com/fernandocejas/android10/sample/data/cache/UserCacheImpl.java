@@ -34,6 +34,15 @@ public class UserCacheImpl implements UserCache {
   private static final String SETTINGS_FILE_NAME = "com.fernandocejas.android10.SETTINGS";
   private static final String SETTINGS_KEY_LAST_CACHE_UPDATE = "last_cache_update";
 
+  /**
+   * Dedicated sub-directory (namespace) inside the app cache directory used exclusively for the
+   * user entity cache. Keeping the user cache in its own directory guarantees that evicting an
+   * expired user cache only clears user files and never deletes files owned by other cache
+   * consumers (e.g. the image cache used by AutoLoadImageView) that also live in the app cache
+   * directory.
+   */
+  private static final String USER_CACHE_DIR_NAME = "user_cache";
+
   private static final String DEFAULT_FILE_NAME = "user_";
   private static final long EXPIRATION_TIME = 60 * 10 * 1000;
 
@@ -56,7 +65,10 @@ public class UserCacheImpl implements UserCache {
       throw new IllegalArgumentException("Invalid null parameter");
     }
     this.context = context.getApplicationContext();
-    this.cacheDir = this.context.getCacheDir();
+    this.cacheDir = new File(this.context.getCacheDir(), USER_CACHE_DIR_NAME);
+    if (!this.cacheDir.exists()) {
+      this.cacheDir.mkdirs();
+    }
     this.serializer = serializer;
     this.fileManager = fileManager;
     this.threadExecutor = executor;
