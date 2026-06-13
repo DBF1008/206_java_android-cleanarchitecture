@@ -60,6 +60,7 @@ android {
 dependencies {
   def presentationDependencies = rootProject.ext.presentationDependencies
   def presentationTestDependencies = rootProject.ext.presentationTestDependencies
+  def presentationUnitTestDependencies = rootProject.ext.presentationUnitTestDependencies
   def developmentDependencies = rootProject.ext.developmentDependencies
 
   implementation project(':domain')
@@ -79,6 +80,11 @@ dependencies {
   androidTestImplementation presentationTestDependencies.dexmakerMockito
   androidTestImplementation presentationTestDependencies.espresso
   androidTestImplementation presentationTestDependencies.testingSupportLib
+
+  testImplementation presentationUnitTestDependencies.junit
+  testImplementation presentationUnitTestDependencies.assertj
+  testImplementation presentationUnitTestDependencies.mockito
+  testImplementation presentationUnitTestDependencies.robolectric
 
   //Development
   implementation developmentDependencies.leakCanary

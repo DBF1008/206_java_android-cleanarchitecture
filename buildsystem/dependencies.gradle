@@ -54,6 +54,13 @@ ext {
       testingSupportLib:  "com.android.support.test:testing-support-lib:${testingSupportLibVersion}",
   ]
 
+  presentationUnitTestDependencies = [
+      junit:              "junit:junit:${jUnitVersion}",
+      assertj:            "org.assertj:assertj-core:${assertJVersion}",
+      mockito:            "org.mockito:mockito-core:${mockitoVersion}",
+      robolectric:        "org.robolectric:robolectric:${robolectricVersion}",
+  ]
+
   domainDependencies = [
       javaxAnnotation:    "javax.annotation:jsr250-api:${javaxAnnotationVersion}",
       javaxInject:        "javax.inject:javax.inject:${javaxInjectVersion}",

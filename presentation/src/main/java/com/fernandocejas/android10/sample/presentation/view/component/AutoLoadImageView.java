@@ -21,6 +21,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLConnection;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Simple implementation of {@link android.widget.ImageView} with extended features like setting an
@@ -33,6 +34,9 @@ public class AutoLoadImageView extends ImageView {
   private String imageUrl = null;
   private int imagePlaceHolderResId = -1;
   private DiskCache cache = new DiskCache(getContext().getCacheDir());
+  // Identifies the latest image request. Bumped on every setImageUrl() call so that asynchronous
+  // results from superseded requests can be detected and discarded instead of overwriting the view.
+  private final AtomicLong requestTokenCounter = new AtomicLong(0);
 
   public AutoLoadImageView(Context context) {
     super(context);
@@ -73,40 +77,76 @@ public class AutoLoadImageView extends ImageView {
    */
   public void setImageUrl(final String imageUrl) {
     this.imageUrl = imageUrl;
-    AutoLoadImageView.this.loadImagePlaceHolder();
+    final long requestToken = this.nextRequestToken();
+    this.loadImagePlaceHolder();
     if (this.imageUrl != null) {
-      this.loadImageFromUrl(this.imageUrl);
-    } else {
-      this.loadImagePlaceHolder();
+      this.loadImageFromUrl(requestToken, this.imageUrl);
     }
+  }
+
+  /**
+   * Starts a new image request, invalidating any previous one.
+   *
+   * <p>Asynchronous results (cache hits, downloads and error fallbacks) carry the token of the
+   * request that triggered them and are only applied to the view while that token is still the
+   * latest one. This prevents a slow request for a previous url from overwriting the image of the
+   * request currently in effect, e.g. when the view is recycled for another user, re-bound after a
+   * fragment is restored, or an old download returns after a newer one.
+   *
+   * @return The token identifying the request that has just become the latest one.
+   */
+  long nextRequestToken() {
+    return this.requestTokenCounter.incrementAndGet();
+  }
+
+  /**
+   * @return The token of the request that is currently in effect.
+   */
+  long currentRequestToken() {
+    return this.requestTokenCounter.get();
+  }
+
+  /**
+   * @param requestToken The token to check.
+   * @return true if the given token still identifies the latest request, otherwise false.
+   */
+  private boolean isLatestRequest(final long requestToken) {
+    return requestToken == this.requestTokenCounter.get();
   }
 
   /**
    * Loads and image from the internet (and cache it) or from the internal cache.
    *
+   * @param requestToken The token of the request this load belongs to.
    * @param imageUrl The remote image url to load.
    */
-  private void loadImageFromUrl(final String imageUrl) {
+  private void loadImageFromUrl(final long requestToken, final String imageUrl) {
     new Thread() {
       @Override public void run() {
+        if (!AutoLoadImageView.this.isLatestRequest(requestToken)) {
+          return;
+        }
         final Bitmap bitmap = AutoLoadImageView.this.getFromCache(getFileNameFromUrl(imageUrl));
         if (bitmap != null) {
-          AutoLoadImageView.this.loadBitmap(bitmap);
+          AutoLoadImageView.this.loadBitmap(requestToken, bitmap);
         } else {
           if (isThereInternetConnection()) {
+            if (!AutoLoadImageView.this.isLatestRequest(requestToken)) {
+              return;
+            }
             final ImageDownloader imageDownloader = new ImageDownloader();
             imageDownloader.download(imageUrl, new ImageDownloader.Callback() {
               @Override public void onImageDownloaded(Bitmap bitmap) {
                 AutoLoadImageView.this.cacheBitmap(bitmap, getFileNameFromUrl(imageUrl));
-                AutoLoadImageView.this.loadBitmap(bitmap);
+                AutoLoadImageView.this.loadBitmap(requestToken, bitmap);
               }
 
               @Override public void onError() {
-                AutoLoadImageView.this.loadImagePlaceHolder();
+                AutoLoadImageView.this.loadImagePlaceHolder(requestToken);
               }
             });
           } else {
-            AutoLoadImageView.this.loadImagePlaceHolder();
+            AutoLoadImageView.this.loadImagePlaceHolder(requestToken);
           }
         }
       }
@@ -114,14 +154,18 @@ public class AutoLoadImageView extends ImageView {
   }
 
   /**
-   * Run the operation of loading a bitmap on the UI thread.
+   * Run the operation of loading a bitmap on the UI thread, but only if it still belongs to the
+   * latest request. The check runs on the UI thread so it cannot race with a newer setImageUrl().
    *
+   * @param requestToken The token of the request this bitmap belongs to.
    * @param bitmap The image to load.
    */
-  private void loadBitmap(final Bitmap bitmap) {
+  void loadBitmap(final long requestToken, final Bitmap bitmap) {
     ((Activity) getContext()).runOnUiThread(new Runnable() {
       @Override public void run() {
-        AutoLoadImageView.this.setImageBitmap(bitmap);
+        if (AutoLoadImageView.this.isLatestRequest(requestToken)) {
+          AutoLoadImageView.this.setImageBitmap(bitmap);
+        }
       }
     });
   }
@@ -138,6 +182,24 @@ public class AutoLoadImageView extends ImageView {
         }
       });
     }
+  }
+
+  /**
+   * Loads the image place holder for an asynchronous fallback, but only if the given request is
+   * still the latest one, so a stale failure cannot reset the image of a newer request.
+   *
+   * @param requestToken The token of the request this fallback belongs to.
+   */
+  private void loadImagePlaceHolder(final long requestToken) {
+    ((Activity) getContext()).runOnUiThread(new Runnable() {
+      @Override public void run() {
+        if (AutoLoadImageView.this.isLatestRequest(requestToken)
+            && AutoLoadImageView.this.imagePlaceHolderResId != -1) {
+          AutoLoadImageView.this.setImageResource(
+              AutoLoadImageView.this.imagePlaceHolderResId);
+        }
+      }
+    });
   }
 
   /**
