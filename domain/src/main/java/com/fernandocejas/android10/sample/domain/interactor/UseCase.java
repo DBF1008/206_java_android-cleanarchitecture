@@ -65,12 +65,16 @@ public abstract class UseCase<T, Params> {
   }
 
   /**
-   * Dispose from current {@link CompositeDisposable}.
+   * Cancels any in-flight subscription created by this use case.
+   *
+   * <p>This uses {@link CompositeDisposable#clear()} (instead of
+   * {@link CompositeDisposable#dispose()}) on purpose: it disposes the current subscriptions but
+   * keeps the container usable, so the same use case instance can be {@link #execute executed}
+   * again afterwards. This matters when a view is detached and later re-attached (e.g. a retained
+   * Fragment whose view is destroyed and recreated on a configuration change).
    */
   public void dispose() {
-    if (!disposables.isDisposed()) {
-      disposables.dispose();
-    }
+    disposables.clear();
   }
 
   /**

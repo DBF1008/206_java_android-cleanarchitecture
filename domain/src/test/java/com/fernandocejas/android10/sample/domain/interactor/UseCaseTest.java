@@ -66,6 +66,21 @@ public class UseCaseTest {
   }
 
   @Test
+  public void testUseCaseCanBeReExecutedAfterDispose() {
+    final TestDisposableObserver<Object> firstObserver = new TestDisposableObserver<>();
+    final TestDisposableObserver<Object> secondObserver = new TestDisposableObserver<>();
+
+    useCase.execute(firstObserver, Params.EMPTY);
+    useCase.dispose();
+    useCase.execute(secondObserver, Params.EMPTY);
+
+    // dispose() must only cancel the in-flight work while keeping the use case reusable: the new
+    // subscription must NOT be auto-disposed. Previously dispose() permanently killed the
+    // CompositeDisposable, so any subsequent execute() was disposed immediately and never emitted.
+    assertThat(secondObserver.isDisposed()).isFalse();
+  }
+
+  @Test
   public void testShouldFailWhenExecuteWithNullObserver() {
     expectedException.expect(NullPointerException.class);
     useCase.execute(null, Params.EMPTY);

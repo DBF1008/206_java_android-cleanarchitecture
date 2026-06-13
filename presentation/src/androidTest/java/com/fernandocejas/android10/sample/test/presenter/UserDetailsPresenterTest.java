@@ -16,20 +16,25 @@
 package com.fernandocejas.android10.sample.test.presenter;
 
 import android.content.Context;
+import com.fernandocejas.android10.sample.domain.User;
 import com.fernandocejas.android10.sample.domain.interactor.GetUserDetails;
 import com.fernandocejas.android10.sample.domain.interactor.GetUserDetails.Params;
 import com.fernandocejas.android10.sample.presentation.mapper.UserModelDataMapper;
+import com.fernandocejas.android10.sample.presentation.model.UserModel;
 import com.fernandocejas.android10.sample.presentation.presenter.UserDetailsPresenter;
 import com.fernandocejas.android10.sample.presentation.view.UserDetailsView;
 import io.reactivex.observers.DisposableObserver;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
 
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -60,5 +65,32 @@ public class UserDetailsPresenterTest {
     verify(mockUserDetailsView).hideRetry();
     verify(mockUserDetailsView).showLoading();
     verify(mockGetUserDetails).execute(any(DisposableObserver.class), any(Params.class));
+  }
+
+  @Test
+  public void testDestroyCancelsUseCaseAndDetachesView() {
+    userDetailsPresenter.destroy();
+
+    verify(mockGetUserDetails).dispose();
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  public void testDoesNotRenderUserAfterViewIsDetached() {
+    final ArgumentCaptor<DisposableObserver> observerCaptor =
+        ArgumentCaptor.forClass(DisposableObserver.class);
+
+    userDetailsPresenter.initialize(USER_ID);
+    verify(mockGetUserDetails).execute(observerCaptor.capture(), any(Params.class));
+
+    // Configuration change: the view is detached while the request is in flight, then the
+    // asynchronous result arrives. It must not reach the (now detached) view.
+    userDetailsPresenter.destroy();
+    final DisposableObserver observer = observerCaptor.getValue();
+    observer.onNext(mock(User.class));
+    observer.onComplete();
+
+    verify(mockUserDetailsView, never()).renderUser(any(UserModel.class));
+    verify(mockUserDetailsView, never()).hideLoading();
   }
 }

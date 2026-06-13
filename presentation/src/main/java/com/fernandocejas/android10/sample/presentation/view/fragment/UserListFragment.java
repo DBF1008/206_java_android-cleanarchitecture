@@ -75,10 +75,11 @@ public class UserListFragment extends BaseFragment implements UserListView {
 
   @Override public void onViewCreated(View view, Bundle savedInstanceState) {
     super.onViewCreated(view, savedInstanceState);
+    // Re-attach the (recreated) view to the retained presenter and (re)load. Because the view is
+    // detached and the in-flight use case cancelled in onDestroyView(), we always reload here to
+    // repopulate the freshly created view instead of relying on state tied to the destroyed view.
     this.userListPresenter.setView(this);
-    if (savedInstanceState == null) {
-      this.loadUserList();
-    }
+    this.loadUserList();
   }
 
   @Override public void onResume() {
@@ -93,13 +94,12 @@ public class UserListFragment extends BaseFragment implements UserListView {
 
   @Override public void onDestroyView() {
     super.onDestroyView();
+    // Detach as soon as the view is destroyed: release the view reference and cancel the in-flight
+    // use case so asynchronous callbacks cannot touch the unbound view (NPE) or leak a stale request
+    // into a recreated view. Essential here because this Fragment is retained across rotation.
+    this.userListPresenter.destroy();
     rv_users.setAdapter(null);
     ButterKnife.unbind(this);
-  }
-
-  @Override public void onDestroy() {
-    super.onDestroy();
-    this.userListPresenter.destroy();
   }
 
   @Override public void onDetach() {

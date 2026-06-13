@@ -16,19 +16,25 @@
 package com.fernandocejas.android10.sample.test.presenter;
 
 import android.content.Context;
+import com.fernandocejas.android10.sample.domain.User;
 import com.fernandocejas.android10.sample.domain.interactor.GetUserList;
 import com.fernandocejas.android10.sample.presentation.mapper.UserModelDataMapper;
+import com.fernandocejas.android10.sample.presentation.model.UserModel;
 import com.fernandocejas.android10.sample.presentation.presenter.UserListPresenter;
 import com.fernandocejas.android10.sample.presentation.view.UserListView;
 import io.reactivex.observers.DisposableObserver;
+import java.util.Collections;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
 
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyCollectionOf;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -57,5 +63,32 @@ public class UserListPresenterTest {
     verify(mockUserListView).hideRetry();
     verify(mockUserListView).showLoading();
     verify(mockGetUserList).execute(any(DisposableObserver.class), any(Void.class));
+  }
+
+  @Test
+  public void testDestroyCancelsUseCaseAndDetachesView() {
+    userListPresenter.destroy();
+
+    verify(mockGetUserList).dispose();
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  public void testDoesNotRenderUserListAfterViewIsDetached() {
+    final ArgumentCaptor<DisposableObserver> observerCaptor =
+        ArgumentCaptor.forClass(DisposableObserver.class);
+
+    userListPresenter.initialize();
+    verify(mockGetUserList).execute(observerCaptor.capture(), any(Void.class));
+
+    // Configuration change: the view is detached while the request is in flight, then the
+    // asynchronous result arrives. It must not reach the (now detached) view.
+    userListPresenter.destroy();
+    final DisposableObserver observer = observerCaptor.getValue();
+    observer.onNext(Collections.<User>emptyList());
+    observer.onComplete();
+
+    verify(mockUserListView, never()).renderUserList(anyCollectionOf(UserModel.class));
+    verify(mockUserListView, never()).hideLoading();
   }
 }

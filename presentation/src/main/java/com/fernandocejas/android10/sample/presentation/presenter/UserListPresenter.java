@@ -49,6 +49,10 @@ public class UserListPresenter implements Presenter {
     this.userModelDataMapper = userModelDataMapper;
   }
 
+  /**
+   * Attaches the view to this presenter. Safe to call again after a previous {@link #destroy()}
+   * (e.g. when a retained Fragment recreates its view), which is why the use case is kept reusable.
+   */
   public void setView(@NonNull UserListView view) {
     this.viewListView = view;
   }
@@ -58,6 +62,9 @@ public class UserListPresenter implements Presenter {
   @Override public void pause() {}
 
   @Override public void destroy() {
+    // Detach: cancel any in-flight use case and release the view reference so pending asynchronous
+    // callbacks cannot reach a destroyed view. The use case remains reusable, so the presenter can
+    // be re-attached via setView(...) and re-initialised afterwards.
     this.getUserListUseCase.dispose();
     this.viewListView = null;
   }
@@ -79,32 +86,53 @@ public class UserListPresenter implements Presenter {
   }
 
   public void onUserClicked(UserModel userModel) {
+    if (this.viewListView == null) {
+      return;
+    }
     this.viewListView.viewUser(userModel);
   }
 
   private void showViewLoading() {
+    if (this.viewListView == null) {
+      return;
+    }
     this.viewListView.showLoading();
   }
 
   private void hideViewLoading() {
+    if (this.viewListView == null) {
+      return;
+    }
     this.viewListView.hideLoading();
   }
 
   private void showViewRetry() {
+    if (this.viewListView == null) {
+      return;
+    }
     this.viewListView.showRetry();
   }
 
   private void hideViewRetry() {
+    if (this.viewListView == null) {
+      return;
+    }
     this.viewListView.hideRetry();
   }
 
   private void showErrorMessage(ErrorBundle errorBundle) {
+    if (this.viewListView == null) {
+      return;
+    }
     String errorMessage = ErrorMessageFactory.create(this.viewListView.context(),
         errorBundle.getException());
     this.viewListView.showError(errorMessage);
   }
 
   private void showUsersCollectionInView(Collection<User> usersCollection) {
+    if (this.viewListView == null) {
+      return;
+    }
     final Collection<UserModel> userModelsCollection =
         this.userModelDataMapper.transform(usersCollection);
     this.viewListView.renderUserList(userModelsCollection);

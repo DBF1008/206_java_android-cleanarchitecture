@@ -32,8 +32,10 @@ public interface Presenter {
   void pause();
 
   /**
-   * Method that control the lifecycle of the view. It should be called in the view's
-   * (Activity or Fragment) onDestroy() method.
+   * Detaches the view from this presenter: it releases the view reference and cancels any in-flight
+   * work so that pending asynchronous callbacks can no longer reach a destroyed view. It should be
+   * called as soon as the view is destroyed, e.g. the {@link android.app.Fragment#onDestroyView()}
+   * (preferred for retained fragments) or the Activity/Fragment {@code onDestroy()} method.
    */
   void destroy();
 }

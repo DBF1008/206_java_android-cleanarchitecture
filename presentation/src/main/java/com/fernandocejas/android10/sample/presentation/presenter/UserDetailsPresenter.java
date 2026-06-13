@@ -48,6 +48,10 @@ public class UserDetailsPresenter implements Presenter {
     this.userModelDataMapper = userModelDataMapper;
   }
 
+  /**
+   * Attaches the view to this presenter. Safe to call again after a previous {@link #destroy()}
+   * (e.g. when a retained Fragment recreates its view), which is why the use case is kept reusable.
+   */
   public void setView(@NonNull UserDetailsView view) {
     this.viewDetailsView = view;
   }
@@ -57,6 +61,9 @@ public class UserDetailsPresenter implements Presenter {
   @Override public void pause() {}
 
   @Override public void destroy() {
+    // Detach: cancel any in-flight use case and release the view reference so pending asynchronous
+    // callbacks cannot reach a destroyed view. The use case remains reusable, so the presenter can
+    // be re-attached via setView(...) and re-initialised afterwards.
     this.getUserDetailsUseCase.dispose();
     this.viewDetailsView = null;
   }
@@ -76,28 +83,46 @@ public class UserDetailsPresenter implements Presenter {
   }
 
   private void showViewLoading() {
+    if (this.viewDetailsView == null) {
+      return;
+    }
     this.viewDetailsView.showLoading();
   }
 
   private void hideViewLoading() {
+    if (this.viewDetailsView == null) {
+      return;
+    }
     this.viewDetailsView.hideLoading();
   }
 
   private void showViewRetry() {
+    if (this.viewDetailsView == null) {
+      return;
+    }
     this.viewDetailsView.showRetry();
   }
 
   private void hideViewRetry() {
+    if (this.viewDetailsView == null) {
+      return;
+    }
     this.viewDetailsView.hideRetry();
   }
 
   private void showErrorMessage(ErrorBundle errorBundle) {
+    if (this.viewDetailsView == null) {
+      return;
+    }
     String errorMessage = ErrorMessageFactory.create(this.viewDetailsView.context(),
         errorBundle.getException());
     this.viewDetailsView.showError(errorMessage);
   }
 
   private void showUserDetailsInView(User user) {
+    if (this.viewDetailsView == null) {
+      return;
+    }
     final UserModel userModel = this.userModelDataMapper.transform(user);
     this.viewDetailsView.renderUser(userModel);
   }
