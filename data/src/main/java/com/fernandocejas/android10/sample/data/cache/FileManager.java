@@ -42,14 +42,12 @@ public class FileManager {
    * @param file The file to write to Disk.
    */
   void writeToFile(File file, String fileContent) {
-    if (!file.exists()) {
-      try {
-        final FileWriter writer = new FileWriter(file);
-        writer.write(fileContent);
-        writer.close();
-      } catch (IOException e) {
-        e.printStackTrace();
-      }
+    try {
+      final FileWriter writer = new FileWriter(file);
+      writer.write(fileContent);
+      writer.close();
+    } catch (IOException e) {
+      e.printStackTrace();
     }
   }
 
