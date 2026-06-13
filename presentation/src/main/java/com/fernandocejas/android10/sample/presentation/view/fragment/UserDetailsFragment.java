@@ -41,6 +41,13 @@ public class UserDetailsFragment extends BaseFragment implements UserDetailsView
   @Bind(R.id.rl_retry) RelativeLayout rl_retry;
   @Bind(R.id.bt_retry) Button bt_retry;
 
+  /**
+   * Last successfully loaded user, kept in memory so the view can recover without refetching.
+   * Survives configuration changes / fragment retain (the fragment instance is retained), but is
+   * {@code null} after the process is killed and recreated, which is exactly when we must reload.
+   */
+  UserModel userModel;
+
   public static UserDetailsFragment forUser(int userId) {
     final UserDetailsFragment userDetailsFragment = new UserDetailsFragment();
     final Bundle arguments = new Bundle();
@@ -68,8 +75,12 @@ public class UserDetailsFragment extends BaseFragment implements UserDetailsView
   @Override public void onViewCreated(View view, Bundle savedInstanceState) {
     super.onViewCreated(view, savedInstanceState);
     this.userDetailsPresenter.setView(this);
-    if (savedInstanceState == null) {
+    // Decide based on whether we still hold the user in memory, not on savedInstanceState: after a
+    // process death savedInstanceState is non-null yet our data is gone, so we must reload.
+    if (this.userModel == null) {
       this.loadUserDetails();
+    } else {
+      this.renderUser(this.userModel);
     }
   }
 
@@ -95,6 +106,7 @@ public class UserDetailsFragment extends BaseFragment implements UserDetailsView
 
   @Override public void renderUser(UserModel user) {
     if (user != null) {
+      this.userModel = user;
       this.iv_cover.setImageUrl(user.getCoverUrl());
       this.tv_fullname.setText(user.getFullName());
       this.tv_email.setText(user.getEmail());

@@ -31,8 +31,14 @@ task runDataUnitTests(dependsOn: [':data:cleanTestDebugUnitTest', ':data:testDeb
   description 'Run unit tests for the data layer.'
 }
 
-task runUnitTests(dependsOn: ['runDomainUnitTests', 'runDataUnitTests']) {
-  description 'Run unit tests for both domain and data layers.'
+task runPresentationUnitTests(
+    dependsOn: [':presentation:cleanTestDebugUnitTest', ':presentation:testDebugUnitTest']) {
+  description 'Run unit tests for the presentation layer.'
+}
+
+task runUnitTests(
+    dependsOn: ['runDomainUnitTests', 'runDataUnitTests', 'runPresentationUnitTests']) {
+  description 'Run unit tests for the domain, data and presentation layers.'
 }
 
 task runAcceptanceTests(dependsOn: [':presentation:connectedAndroidTest']) {

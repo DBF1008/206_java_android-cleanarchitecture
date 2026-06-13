@@ -49,6 +49,13 @@ public class UserListFragment extends BaseFragment implements UserListView {
 
   private UserListListener userListListener;
 
+  /**
+   * Last successfully loaded user list, kept in memory so the view can recover without refetching.
+   * Survives configuration changes / fragment retain (the fragment instance is retained), but is
+   * {@code null} after the process is killed and recreated, which is exactly when we must reload.
+   */
+  Collection<UserModel> userModelCollection;
+
   public UserListFragment() {
     setRetainInstance(true);
   }
@@ -76,8 +83,12 @@ public class UserListFragment extends BaseFragment implements UserListView {
   @Override public void onViewCreated(View view, Bundle savedInstanceState) {
     super.onViewCreated(view, savedInstanceState);
     this.userListPresenter.setView(this);
-    if (savedInstanceState == null) {
+    // Decide based on whether we still hold data in memory, not on savedInstanceState: after a
+    // process death savedInstanceState is non-null yet our data is gone, so we must reload.
+    if (this.userModelCollection == null) {
       this.loadUserList();
+    } else {
+      this.renderUserList(this.userModelCollection);
     }
   }
 
@@ -127,6 +138,7 @@ public class UserListFragment extends BaseFragment implements UserListView {
 
   @Override public void renderUserList(Collection<UserModel> userModelCollection) {
     if (userModelCollection != null) {
+      this.userModelCollection = userModelCollection;
       this.usersAdapter.setUsersCollection(userModelCollection);
     }
   }

@@ -60,6 +60,7 @@ android {
 dependencies {
   def presentationDependencies = rootProject.ext.presentationDependencies
   def presentationTestDependencies = rootProject.ext.presentationTestDependencies
+  def presentationUnitTestDependencies = rootProject.ext.presentationUnitTestDependencies
   def developmentDependencies = rootProject.ext.developmentDependencies
 
   implementation project(':domain')
@@ -73,6 +74,11 @@ dependencies {
   implementation presentationDependencies.rxJava
   implementation presentationDependencies.rxAndroid
   compileOnly presentationDependencies.javaxAnnotation
+
+  testImplementation presentationUnitTestDependencies.junit
+  testImplementation presentationUnitTestDependencies.assertj
+  testImplementation presentationUnitTestDependencies.mockito
+  testImplementation presentationUnitTestDependencies.robolectric
 
   androidTestImplementation presentationTestDependencies.mockito
   androidTestImplementation presentationTestDependencies.dexmaker
