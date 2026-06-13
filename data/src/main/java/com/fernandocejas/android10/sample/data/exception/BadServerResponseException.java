@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,18 +16,25 @@
 package com.fernandocejas.android10.sample.data.exception;
 
 /**
- * Exception throw by the application when a User search can't return a valid result.
+ * Exception thrown when the server returns an invalid, malformed, or unexpected response.
+ * This covers scenarios such as JSON parse errors, malformed response bodies,
+ * and null/empty responses when a network connection is available.
  */
-public class UserNotFoundException extends Exception {
-  public UserNotFoundException() {
+public class BadServerResponseException extends Exception {
+
+  public BadServerResponseException() {
     super();
   }
 
-  public UserNotFoundException(final String message) {
+  public BadServerResponseException(final String message) {
     super(message);
   }
 
-  public UserNotFoundException(final Throwable cause) {
+  public BadServerResponseException(final Throwable cause) {
     super(cause);
+  }
+
+  public BadServerResponseException(final String message, final Throwable cause) {
+    super(message, cause);
   }
 }

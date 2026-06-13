@@ -50,14 +50,15 @@ class ApiConnection implements Callable<String> {
    * It should not be executed in the main thread of the application.
    *
    * @return A string response
+   * @throws IOException if the network request fails.
    */
   @Nullable
-  String requestSyncCall() {
+  String requestSyncCall() throws IOException {
     connectToApi();
     return response;
   }
 
-  private void connectToApi() {
+  private void connectToApi() throws IOException {
     OkHttpClient okHttpClient = this.createClient();
     final Request request = new Request.Builder()
         .url(this.url)
@@ -65,11 +66,7 @@ class ApiConnection implements Callable<String> {
         .get()
         .build();
 
-    try {
-      this.response = okHttpClient.newCall(request).execute().body().string();
-    } catch (IOException e) {
-      e.printStackTrace();
-    }
+    this.response = okHttpClient.newCall(request).execute().body().string();
   }
 
   private OkHttpClient createClient() {

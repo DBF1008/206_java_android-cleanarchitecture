@@ -20,8 +20,12 @@ import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import com.fernandocejas.android10.sample.data.entity.UserEntity;
 import com.fernandocejas.android10.sample.data.entity.mapper.UserEntityJsonMapper;
+import com.fernandocejas.android10.sample.data.exception.BadServerResponseException;
 import com.fernandocejas.android10.sample.data.exception.NetworkConnectionException;
+import com.fernandocejas.android10.sample.data.exception.UserNotFoundException;
+import com.google.gson.JsonSyntaxException;
 import io.reactivex.Observable;
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.util.List;
 
@@ -57,10 +61,19 @@ public class RestApiImpl implements RestApi {
                 responseUserEntities));
             emitter.onComplete();
           } else {
-            emitter.onError(new NetworkConnectionException());
+            emitter.onError(new BadServerResponseException(
+                "Empty response received from server"));
           }
+        } catch (IOException e) {
+          emitter.onError(new NetworkConnectionException(e));
+        } catch (JsonSyntaxException e) {
+          emitter.onError(new BadServerResponseException(
+              "Malformed JSON response from server", e));
+        } catch (MalformedURLException e) {
+          emitter.onError(new BadServerResponseException(
+              "Invalid API endpoint URL", e));
         } catch (Exception e) {
-          emitter.onError(new NetworkConnectionException(e.getCause()));
+          emitter.onError(new BadServerResponseException(e));
         }
       } else {
         emitter.onError(new NetworkConnectionException());
@@ -74,13 +87,29 @@ public class RestApiImpl implements RestApi {
         try {
           String responseUserDetails = getUserDetailsFromApi(userId);
           if (responseUserDetails != null) {
-            emitter.onNext(userEntityJsonMapper.transformUserEntity(responseUserDetails));
-            emitter.onComplete();
+            UserEntity userEntity =
+                userEntityJsonMapper.transformUserEntity(responseUserDetails);
+            if (userEntity != null) {
+              emitter.onNext(userEntity);
+              emitter.onComplete();
+            } else {
+              emitter.onError(new UserNotFoundException(
+                  "User with id " + userId + " not found in response"));
+            }
           } else {
-            emitter.onError(new NetworkConnectionException());
+            emitter.onError(new UserNotFoundException(
+                "Empty response for user id " + userId));
           }
+        } catch (IOException e) {
+          emitter.onError(new NetworkConnectionException(e));
+        } catch (JsonSyntaxException e) {
+          emitter.onError(new BadServerResponseException(
+              "Malformed JSON response for user id " + userId, e));
+        } catch (MalformedURLException e) {
+          emitter.onError(new BadServerResponseException(
+              "Invalid API endpoint URL", e));
         } catch (Exception e) {
-          emitter.onError(new NetworkConnectionException(e.getCause()));
+          emitter.onError(new BadServerResponseException(e));
         }
       } else {
         emitter.onError(new NetworkConnectionException());
@@ -88,11 +117,11 @@ public class RestApiImpl implements RestApi {
     });
   }
 
-  private String getUserEntitiesFromApi() throws MalformedURLException {
+  private String getUserEntitiesFromApi() throws MalformedURLException, IOException {
     return ApiConnection.createGET(API_URL_GET_USER_LIST).requestSyncCall();
   }
 
-  private String getUserDetailsFromApi(int userId) throws MalformedURLException {
+  private String getUserDetailsFromApi(int userId) throws MalformedURLException, IOException {
     String apiUrl = API_URL_GET_USER_DETAILS + userId + ".json";
     return ApiConnection.createGET(apiUrl).requestSyncCall();
   }
