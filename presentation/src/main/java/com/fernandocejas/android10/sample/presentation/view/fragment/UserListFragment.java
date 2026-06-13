@@ -93,6 +93,7 @@ public class UserListFragment extends BaseFragment implements UserListView {
 
   @Override public void onDestroyView() {
     super.onDestroyView();
+    this.userListPresenter.detach();
     rv_users.setAdapter(null);
     ButterKnife.unbind(this);
   }

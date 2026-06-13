@@ -74,6 +74,16 @@ public abstract class UseCase<T, Params> {
   }
 
   /**
+   * Clears all current {@link io.reactivex.disposables.Disposable}s from the
+   * {@link CompositeDisposable} without permanently disposing it.
+   * This cancels in-flight subscriptions while still allowing new ones to be added later
+   * (e.g. after a view detach/reattach cycle).
+   */
+  public void clear() {
+    disposables.clear();
+  }
+
+  /**
    * Dispose from current {@link CompositeDisposable}.
    */
   private void addDisposable(Disposable disposable) {

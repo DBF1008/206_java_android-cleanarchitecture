@@ -85,6 +85,7 @@ public class UserDetailsFragment extends BaseFragment implements UserDetailsView
 
   @Override public void onDestroyView() {
     super.onDestroyView();
+    this.userDetailsPresenter.detach();
     ButterKnife.unbind(this);
   }
 

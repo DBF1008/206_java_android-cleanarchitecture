@@ -71,6 +71,26 @@ public class UseCaseTest {
     useCase.execute(null, Params.EMPTY);
   }
 
+  @Test
+  public void testClearDisposesInFlightSubscriptions() {
+    useCase.execute(testObserver, Params.EMPTY);
+    useCase.clear();
+
+    assertThat(testObserver.isDisposed()).isTrue();
+  }
+
+  @Test
+  public void testClearAllowsNewSubscriptions() {
+    useCase.execute(testObserver, Params.EMPTY);
+    useCase.clear();
+
+    // After clear(), a new observer should still be accepted (not immediately disposed)
+    TestDisposableObserver<Object> newObserver = new TestDisposableObserver<>();
+    useCase.execute(newObserver, Params.EMPTY);
+
+    assertThat(newObserver.isDisposed()).isFalse();
+  }
+
   private static class UseCaseTestClass extends UseCase<Object, Params> {
 
     UseCaseTestClass(ThreadExecutor threadExecutor, PostExecutionThread postExecutionThread) {

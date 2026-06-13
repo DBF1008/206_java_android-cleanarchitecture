@@ -57,6 +57,11 @@ public class UserListPresenter implements Presenter {
 
   @Override public void pause() {}
 
+  @Override public void detach() {
+    this.getUserListUseCase.clear();
+    this.viewListView = null;
+  }
+
   @Override public void destroy() {
     this.getUserListUseCase.dispose();
     this.viewListView = null;
@@ -117,17 +122,23 @@ public class UserListPresenter implements Presenter {
   private final class UserListObserver extends DefaultObserver<List<User>> {
 
     @Override public void onComplete() {
-      UserListPresenter.this.hideViewLoading();
+      if (UserListPresenter.this.viewListView != null) {
+        UserListPresenter.this.hideViewLoading();
+      }
     }
 
     @Override public void onError(Throwable e) {
-      UserListPresenter.this.hideViewLoading();
-      UserListPresenter.this.showErrorMessage(new DefaultErrorBundle((Exception) e));
-      UserListPresenter.this.showViewRetry();
+      if (UserListPresenter.this.viewListView != null) {
+        UserListPresenter.this.hideViewLoading();
+        UserListPresenter.this.showErrorMessage(new DefaultErrorBundle((Exception) e));
+        UserListPresenter.this.showViewRetry();
+      }
     }
 
     @Override public void onNext(List<User> users) {
-      UserListPresenter.this.showUsersCollectionInView(users);
+      if (UserListPresenter.this.viewListView != null) {
+        UserListPresenter.this.showUsersCollectionInView(users);
+      }
     }
   }
 }

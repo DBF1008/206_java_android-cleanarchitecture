@@ -32,6 +32,14 @@ public interface Presenter {
   void pause();
 
   /**
+   * Method that controls the lifecycle of the view. It should be called in the view's
+   * (Activity or Fragment) onDestroyView() method.
+   * It detaches the view reference and cancels any in-flight asynchronous operations,
+   * preventing callbacks from accessing an invalid view after configuration changes.
+   */
+  void detach();
+
+  /**
    * Method that control the lifecycle of the view. It should be called in the view's
    * (Activity or Fragment) onDestroy() method.
    */
